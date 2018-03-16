@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from . import models
 
+
 class HelloSerializer(serializers.Serializer):
     """Serializes a name field for testing our APIView"""
 
@@ -43,6 +44,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class ProfileFeedItemSerializer(serializers.ModelSerializer):
     """A serializer for profile feed items."""
 
@@ -55,3 +57,55 @@ class ProfileFeedItemSerializer(serializers.ModelSerializer):
                 'read_only': True
             }
         }
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+    def validate_email(self, attrs):
+        """ ensure email is in the database """
+
+        try:
+            condition = models.UserProfile.objects.get(email__iexact=attrs, is_active=True)
+        except:
+            raise serializers.ValidationError("Email address not verified for any user account")
+
+        return attrs
+
+    def create(self, attrs, instance=None):
+        """ create password reset for user """
+        password_reset = models.PasswordReset.objects.create_for_user(attrs["email"])
+
+        return password_reset
+
+
+class ResetPasswordKeySerializer(serializers.Serializer):
+    password1 = serializers.CharField(
+        help_text='New Password',
+    )
+    password2 = serializers.CharField(
+        help_text='New Password (confirmation)',
+    )
+
+    def validate(self, attrs):
+        """
+        password2 check
+        """
+        password_confirmation = attrs['password1']
+        password = attrs['password2']
+
+        if password_confirmation != password:
+            raise serializers.ValidationError('Password confirmation mismatch')
+
+        return attrs
+
+    def update(self, instance, attrs):
+        """ change password """
+        user = instance.user
+        user.set_password(attrs["password1"])
+        user.save()
+        # mark password reset object as reset
+        instance.reset = True
+        instance.save()
+
+        return instance

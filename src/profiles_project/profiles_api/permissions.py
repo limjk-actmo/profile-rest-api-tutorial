@@ -23,3 +23,14 @@ class PostOwnStatus(permissions.BasePermission):
             return True
 
         return obj.user_profile.id == request.user.id
+
+
+class IsNotAuthenticated(permissions.IsAuthenticated):
+    """
+    Restrict access only to unauthenticated users.
+    """
+    def has_permission(self, request, view, obj=None):
+        if request.user and request.user.is_authenticated():
+            return False
+        else:
+            return True
